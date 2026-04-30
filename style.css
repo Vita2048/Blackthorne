@@ -16,9 +16,8 @@ main {
 }
 
 #game-container {
-  box-shadow: 0 0 80px rgba(138, 43, 226, 0.4);
-  border: 2px solid #2a1b38;
-  border-radius: 4px;
+  width: 100vw;
+  height: 100vh;
   overflow: hidden;
 }
 

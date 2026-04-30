@@ -1,5 +1,4 @@
-const CANVAS_W = 1280;
-const CANVAS_H = 720;
+let CANVAS_W, CANVAS_H;
 
 let player;
 let cameraX = 0;
@@ -29,6 +28,8 @@ function preload() {
 }
 
 function setup() {
+  CANVAS_W = windowWidth;
+  CANVAS_H = windowHeight;
   let canvas = createCanvas(CANVAS_W, CANVAS_H);
   canvas.parent('game-container');
   
@@ -50,6 +51,12 @@ function setup() {
   removeWhiteBackground(imgWalk);
   removeWhiteBackground(imgSheathe);
   removeWhiteBackground(imgWalkUnarmed);
+}
+
+function windowResized() {
+  CANVAS_W = windowWidth;
+  CANVAS_H = windowHeight;
+  resizeCanvas(CANVAS_W, CANVAS_H);
 }
 
 function removeWhiteBackground(img) {
@@ -87,8 +94,8 @@ function updateLogic() {
   }
   
   // Smooth Camera Follow
-  let targetCamX = player.x - CANVAS_W / 2;
-  let targetCamY = player.y - CANVAS_H / 2 - 100;
+  let targetCamX = player.x - width / 2;
+  let targetCamY = player.y - height / 2 - 100;
   cameraX = lerp(cameraX, targetCamX, 0.08);
   cameraY = lerp(cameraY, targetCamY, 0.08);
 }
@@ -150,8 +157,8 @@ class Player {
   constructor(x, y) {
     this.x = x;
     this.y = y;
-    this.w = 50;
-    this.h = 100;
+    this.w = 75;
+    this.h = 150;
     this.vx = 0;
     this.vy = 0;
     this.walkSpeed = 4;
@@ -317,15 +324,8 @@ class Player {
     // Animation Frame Logic
     if (this.state === 'RUN' || this.state === 'WALK') {
       let animSpeed = this.state === 'RUN' ? 1.6 : 0.4;
-      
-      // User requested reversed playback for left movement specifically when unarmed
-      if (!this.isArmed && this.dir === -1) {
-        this.frameIndex -= animSpeed;
-        if (this.frameIndex < 0) this.frameIndex = 23.99;
-      } else {
-        this.frameIndex += animSpeed;
-        if (this.frameIndex >= 24) this.frameIndex = 0;
-      }
+      this.frameIndex += animSpeed;
+      if (this.frameIndex >= 24) this.frameIndex = 0;
     } else {
       this.frameIndex = 0;
     }
@@ -360,8 +360,8 @@ class Player {
     if (this.state === 'HIDE' || this.state === 'CLIMB') return;
     
     let shootDir = this.dir * dirMult;
-    let spawnX = this.x + (this.w/2 + 35) * shootDir;
-    let spawnY = isCrouched ? this.y + 10 : this.y - 15;
+    let spawnX = this.x + (this.w/2 + 52) * shootDir;
+    let spawnY = isCrouched ? this.y + 15 : this.y - 22;
     
     let p = new Projectile(spawnX, spawnY, shootDir * 18, 0, true);
     particles.push(p);
@@ -414,8 +414,8 @@ class Player {
     }
     
     imageMode(CENTER);
-    let drawW = 120;
-    let drawH = 120;
+    let drawW = 180;
+    let drawH = 180;
     
     // Animation logic (Only keep rotation for Jump)
     let rot = 0;
@@ -475,8 +475,8 @@ class Enemy {
   constructor(x, y) {
     this.x = x;
     this.y = y;
-    this.w = 50;
-    this.h = 100;
+    this.w = 75;
+    this.h = 150;
     this.vx = 0;
     this.vy = 0;
     this.gravity = 0.6;
@@ -514,8 +514,8 @@ class Enemy {
     scale(this.dir, 1);
     
     imageMode(CENTER);
-    let drawW = 120;
-    let drawH = 120;
+    let drawW = 180;
+    let drawH = 180;
     
     // Idle breathing animation
     let bob = abs(sin(frameCount * 0.05)) * 3;
