@@ -9,7 +9,7 @@ let entities = [];
 let particles = [];
 let platforms = [];
 
-let imgBg1, imgBg2, imgPlayer, imgEnemy, imgWalk, imgSheathe;
+let imgBg1, imgBg2, imgPlayer, imgEnemy, imgWalk, imgSheathe, imgWalkUnarmed;
 
 // Colors - Slayen Aesthetic
 const COLOR_SHADOW = '#050010';
@@ -25,6 +25,7 @@ function preload() {
   imgEnemy = loadImage('assets/enemy_sprite_1777544917977.png');
   imgWalk = loadImage('assets/WalkingRight.png');
   imgSheathe = loadImage('assets/SheatheWeapon.png');
+  imgWalkUnarmed = loadImage('assets/WalkingRightGunSheathed.png');
 }
 
 function setup() {
@@ -48,6 +49,7 @@ function setup() {
   removeWhiteBackground(imgEnemy);
   removeWhiteBackground(imgWalk);
   removeWhiteBackground(imgSheathe);
+  removeWhiteBackground(imgWalkUnarmed);
 }
 
 function removeWhiteBackground(img) {
@@ -315,8 +317,15 @@ class Player {
     // Animation Frame Logic
     if (this.state === 'RUN' || this.state === 'WALK') {
       let animSpeed = this.state === 'RUN' ? 1.6 : 0.4;
-      this.frameIndex += animSpeed;
-      if (this.frameIndex >= 24) this.frameIndex = 0;
+      
+      // User requested reversed playback for left movement specifically when unarmed
+      if (!this.isArmed && this.dir === -1) {
+        this.frameIndex -= animSpeed;
+        if (this.frameIndex < 0) this.frameIndex = 23.99;
+      } else {
+        this.frameIndex += animSpeed;
+        if (this.frameIndex >= 24) this.frameIndex = 0;
+      }
     } else {
       this.frameIndex = 0;
     }
@@ -415,19 +424,23 @@ class Player {
     }
     rotate(rot);
 
-    if ((this.state === 'RUN' || this.state === 'WALK') && imgWalk) {
-       let fIndex = floor(this.frameIndex);
-       if (fIndex > 23) fIndex = 23;
-       if (fIndex < 0) fIndex = 0;
+    if ((this.state === 'RUN' || this.state === 'WALK')) {
+       let targetImg = this.isArmed ? imgWalk : imgWalkUnarmed;
        
-       let cols = 5;
-       let rows = 5;
-       let fw = imgWalk.width / cols;
-       let fh = imgWalk.height / rows;
-       let col = fIndex % cols;
-       let row = floor(fIndex / cols);
-       
-       image(imgWalk, 0, 0, drawW, drawH, col * fw, row * fh, fw, fh);
+       if (targetImg) {
+         let fIndex = floor(this.frameIndex);
+         if (fIndex > 23) fIndex = 23;
+         if (fIndex < 0) fIndex = 0;
+         
+         let cols = 5;
+         let rows = 5;
+         let fw = targetImg.width / cols;
+         let fh = targetImg.height / rows;
+         let col = fIndex % cols;
+         let row = floor(fIndex / cols);
+         
+         image(targetImg, 0, 0, drawW, drawH, col * fw, row * fh, fw, fh);
+       }
     } else if (imgSheathe && (this.animatingSheathe || !this.isArmed)) {
        // Use Sheathe spritesheet for unarmed idle or sheathing/drawing animation
        let fIndex = floor(this.sheatheAnimIndex);
