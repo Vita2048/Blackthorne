@@ -1,0 +1,49 @@
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #050010; /* Deep shadow base */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  overflow: hidden;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #fff;
+}
+
+main {
+  position: relative;
+}
+
+#game-container {
+  box-shadow: 0 0 80px rgba(138, 43, 226, 0.4);
+  border: 2px solid #2a1b38;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+canvas {
+  display: block;
+}
+
+#ui-overlay {
+  position: absolute;
+  top: 20px;
+  left: 30px;
+  pointer-events: none;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+}
+
+#ui-overlay h1 {
+  margin: 0 0 10px 0;
+  color: #d000ff;
+  font-size: 2rem;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
+
+#ui-overlay p {
+  margin: 5px 0;
+  font-size: 0.9rem;
+  color: #aaa;
+}
