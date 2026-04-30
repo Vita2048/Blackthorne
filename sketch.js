@@ -9,7 +9,7 @@ let entities = [];
 let particles = [];
 let platforms = [];
 
-let imgBg1, imgBg2, imgPlayer, imgEnemy, imgWalk;
+let imgBg1, imgBg2, imgPlayer, imgEnemy, imgWalk, imgSheathe;
 
 // Colors - Slayen Aesthetic
 const COLOR_SHADOW = '#050010';
@@ -24,6 +24,7 @@ function preload() {
   imgPlayer = loadImage('assets/player_sprite_1777544899780.png');
   imgEnemy = loadImage('assets/enemy_sprite_1777544917977.png');
   imgWalk = loadImage('assets/WalkingRight.png');
+  imgSheathe = loadImage('assets/SheatheWeapon.png');
 }
 
 function setup() {
@@ -46,6 +47,7 @@ function setup() {
   removeWhiteBackground(imgPlayer);
   removeWhiteBackground(imgEnemy);
   removeWhiteBackground(imgWalk);
+  removeWhiteBackground(imgSheathe);
 }
 
 function removeWhiteBackground(img) {
@@ -151,8 +153,8 @@ class Player {
     this.vx = 0;
     this.vy = 0;
     this.walkSpeed = 4;
-    this.runSpeed = 8;
-    this.jumpForce = -13;
+    this.runSpeed = 16;
+    this.jumpForce = -18;
     this.gravity = 0.6;
     this.dir = 1; // 1 = right, -1 = left
     
@@ -169,6 +171,8 @@ class Player {
     this.prevKeyC = false;
     
     this.frameIndex = 0;
+    this.sheatheAnimIndex = 24; // Start at the last frame (sheathed)
+    this.animatingSheathe = false;
   }
   
   update() {
@@ -179,6 +183,13 @@ class Player {
     let keyS = keys['s'] || keys['S'];
     if (keyS && !this.prevKeyS) {
       if (this.state === 'IDLE' || this.state === 'WALK' || this.state === 'CROUCH' || this.state === 'RUN') {
+        this.animatingSheathe = true;
+        // If armed, start sheathing (0 -> 24). If unarmed, start drawing (24 -> 0).
+        if (this.isArmed) {
+          this.sheatheAnimIndex = 0;
+        } else {
+          this.sheatheAnimIndex = 24;
+        }
         this.isArmed = !this.isArmed;
       }
     }
@@ -303,11 +314,28 @@ class Player {
     
     // Animation Frame Logic
     if (this.state === 'RUN' || this.state === 'WALK') {
-      let animSpeed = this.state === 'RUN' ? 0.8 : 0.4;
+      let animSpeed = this.state === 'RUN' ? 1.6 : 0.4;
       this.frameIndex += animSpeed;
       if (this.frameIndex >= 24) this.frameIndex = 0;
     } else {
       this.frameIndex = 0;
+    }
+
+    // Sheathe Animation Logic
+    if (this.animatingSheathe) {
+      if (!this.isArmed) { // We just toggled isArmed to false, so we are currently sheathing (0 -> 24)
+        this.sheatheAnimIndex += 1.0;
+        if (this.sheatheAnimIndex >= 24) {
+          this.sheatheAnimIndex = 24;
+          this.animatingSheathe = false;
+        }
+      } else { // We just toggled isArmed to true, so we are currently drawing (24 -> 0)
+        this.sheatheAnimIndex -= 1.0;
+        if (this.sheatheAnimIndex <= 0) {
+          this.sheatheAnimIndex = 0;
+          this.animatingSheathe = false;
+        }
+      }
     }
   }
   
@@ -400,6 +428,20 @@ class Player {
        let row = floor(fIndex / cols);
        
        image(imgWalk, 0, 0, drawW, drawH, col * fw, row * fh, fw, fh);
+    } else if (imgSheathe && (this.animatingSheathe || !this.isArmed)) {
+       // Use Sheathe spritesheet for unarmed idle or sheathing/drawing animation
+       let fIndex = floor(this.sheatheAnimIndex);
+       let cols = 5;
+       let rows = 5;
+       let fw = imgSheathe.width / cols;
+       let fh = imgSheathe.height / rows;
+       let col = fIndex % cols;
+       let row = floor(fIndex / cols);
+       
+       push();
+       scale(-1, 1); // Mirror because native is left-oriented
+       image(imgSheathe, 0, 0, drawW, drawH, col * fw, row * fh, fw, fh);
+       pop();
     } else if (imgPlayer) {
        push();
        scale(-1, 1); // Flip idle sprite so it matches the Walk spritesheet's native direction
