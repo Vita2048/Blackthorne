@@ -380,18 +380,11 @@ class Player {
     let drawW = 120;
     let drawH = 120;
     
-    // Animation logic
-    let bob = 0;
+    // Animation logic (Only keep rotation for Jump)
     let rot = 0;
-    if (this.state === 'RUN' || this.state === 'WALK') {
-        let speed = this.state === 'RUN' ? 0.6 : 0.3;
-        bob = abs(sin(frameCount * speed)) * 8;
-        rot = sin(frameCount * speed) * 0.06;
-    } else if (this.state === 'JUMP') {
+    if (this.state === 'JUMP') {
         rot = -0.1;
     }
-    
-    translate(0, -bob);
     rotate(rot);
 
     if ((this.state === 'RUN' || this.state === 'WALK') && imgWalk) {
@@ -408,7 +401,10 @@ class Player {
        
        image(imgWalk, 0, 0, drawW, drawH, col * fw, row * fh, fw, fh);
     } else if (imgPlayer) {
+       push();
+       scale(-1, 1); // Flip idle sprite so it matches the Walk spritesheet's native direction
        image(imgPlayer, 0, 0, drawW, drawH);
+       pop();
     } else {
        fill(200, 0, 0);
        rect(0, 0, this.w, this.h);
