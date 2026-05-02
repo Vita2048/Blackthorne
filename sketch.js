@@ -552,7 +552,8 @@ class Enemy {
     
     this.shootCols = 4;
     this.shootRows = 4;
-    this.totalShootFrames = 15;
+    this.totalShootFrames = 14;
+    this.firedThisCycle = false;
   }
   
   update() {
@@ -561,7 +562,8 @@ class Enemy {
     // Detection Logic
     let distToPlayer = dist(this.x, this.y, player.x, player.y);
     let playerInFront = (this.dir === 1 && player.x > this.x) || (this.dir === -1 && player.x < this.x);
-    let canSeePlayer = player.state !== 'HIDE' && distToPlayer < this.detectionRange && playerInFront;
+    let sameLevel = abs(this.y - player.y) < 50;
+    let canSeePlayer = player.state !== 'HIDE' && distToPlayer < this.detectionRange && playerInFront && sameLevel;
     
     if (canSeePlayer) {
       if (this.state !== 'SHOOT') {
@@ -582,11 +584,13 @@ class Enemy {
       this.frameIndex += 0.5;
       if (this.frameIndex >= this.totalShootFrames) {
         this.frameIndex = 0;
+        this.firedThisCycle = false;
       }
       
-      // Fire bullet at specific frame (e.g., frame 10)
-      if (floor(this.frameIndex) === 10 && this.shootTimer % 30 === 0) {
+      // Fire bullet at specific frame (e.g., frame 7)
+      if (floor(this.frameIndex) === 7 && !this.firedThisCycle) {
         this.shoot();
+        this.firedThisCycle = true;
       }
       
     } else {
@@ -682,8 +686,8 @@ class Enemy {
       if (this.dir === 1) scale(-1, 1);
       
       let fIndex = floor(this.frameIndex) % this.totalShootFrames;
-      let fw = 512;
-      let fh = 512;
+      let fw = imgEnemyShoot.width / this.shootCols;
+      let fh = imgEnemyShoot.height / this.shootRows;
       let col = fIndex % this.shootCols;
       let row = floor(fIndex / this.shootCols);
       
