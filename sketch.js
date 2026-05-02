@@ -8,7 +8,7 @@ let entities = [];
 let particles = [];
 let platforms = [];
 
-let imgBg1, imgBg2, imgPlayer, imgEnemy, imgWalk, imgSheathe, imgWalkUnarmed, imgEnemyWalk, imgEnemyShoot;
+let imgBg1, imgBg2, imgPlayer, imgEnemy, imgWalk, imgSheathe, imgWalkUnarmed, imgEnemyWalk, imgEnemyShoot, imgPlayerDeath;
 
 // Colors - Slayen Aesthetic
 const COLOR_SHADOW = '#050010';
@@ -27,6 +27,7 @@ function preload() {
   imgWalkUnarmed = loadImage('assets/WalkingRightGunSheathed.png');
   imgEnemyWalk = loadImage('assets/EnemyWalkingRight.png');
   imgEnemyShoot = loadImage('assets/EnemyShooting.png');
+  imgPlayerDeath = loadImage('assets/PlayerDies.png');
 }
 
 function setup() {
@@ -55,6 +56,7 @@ function setup() {
   removeWhiteBackground(imgWalkUnarmed);
   removeWhiteBackground(imgEnemyWalk);
   removeWhiteBackground(imgEnemyShoot);
+  removeWhiteBackground(imgPlayerDeath);
 }
 
 function windowResized() {
@@ -210,8 +212,13 @@ class Player {
   }
   
   hit() {
+    if (this.state === 'DEAD') return;
     this.hp--;
-    if (this.hp < 0) this.hp = 0;
+    if (this.hp <= 0) {
+      this.hp = 0;
+      this.state = 'DEAD';
+      this.frameIndex = 0;
+    }
     // Add hit effect if needed
     for(let i=0; i<5; i++) particles.push(new Spark(this.x, this.y, random(-5,5), random(-5,5), '#ff0000'));
   }
@@ -219,6 +226,19 @@ class Player {
   update() {
     if (this.gunTimer > 0) this.gunTimer--;
     if (this.backHitTimer > 0) this.backHitTimer--;
+    
+    if (this.state === 'DEAD') {
+      this.vx = 0;
+      this.frameIndex += 0.3;
+      if (this.frameIndex >= 37) this.frameIndex = 36.9; // Stay at last frame
+      
+      if (!this.isGrounded) {
+        this.vy += this.gravity;
+        this.y += this.vy;
+        this.checkCollisions();
+      }
+      return;
+    }
     
     // Edge Trigger: Draw/Sheathe Weapon
     let keyS = keys['s'] || keys['S'];
@@ -456,7 +476,35 @@ class Player {
     }
     rotate(rot);
 
-    if ((this.state === 'RUN' || this.state === 'WALK')) {
+    if (this.state === 'DEAD' && imgPlayerDeath) {
+       // Native is LEFT (-1). Flip if dir is 1 (RIGHT).
+       pop();
+       push();
+       
+       // Use standard draw size
+       let deathW = drawW;
+       let deathH = drawH;
+       
+       // Anchor at the player's FEET for a consistent ground level
+       translate(this.x, this.y + this.h/2);
+       
+       if (this.dir === 1) scale(-1, 1);
+       else scale(1, 1);
+
+       let fIndex = floor(this.frameIndex);
+       if (fIndex > 36) fIndex = 36;
+       
+       let cols = 7;
+       let rows = 6;
+       let fw = imgPlayerDeath.width / cols;
+       let fh = imgPlayerDeath.height / rows;
+       let col = fIndex % cols;
+       let row = floor(fIndex / cols);
+       
+       imageMode(CORNER);
+       // Draw so the bottom-center of the frame is at the feet position (0,0)
+       image(imgPlayerDeath, -deathW/2, -deathH, deathW, deathH, col * fw, row * fh, fw, fh);
+    } else if ((this.state === 'RUN' || this.state === 'WALK')) {
        let targetImg = this.isArmed ? imgWalk : imgWalkUnarmed;
        
        if (targetImg) {
@@ -563,7 +611,7 @@ class Enemy {
     let distToPlayer = dist(this.x, this.y, player.x, player.y);
     let playerInFront = (this.dir === 1 && player.x > this.x) || (this.dir === -1 && player.x < this.x);
     let sameLevel = abs(this.y - player.y) < 50;
-    let canSeePlayer = player.state !== 'HIDE' && distToPlayer < this.detectionRange && playerInFront && sameLevel;
+    let canSeePlayer = player.state !== 'HIDE' && player.state !== 'DEAD' && distToPlayer < this.detectionRange && playerInFront && sameLevel;
     
     if (canSeePlayer) {
       if (this.state !== 'SHOOT') {
