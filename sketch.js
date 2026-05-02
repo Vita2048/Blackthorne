@@ -216,7 +216,7 @@ class Player {
   }
 
   hit() {
-    if (this.state === 'DEAD') return;
+    if (this.state === 'DEAD' || this.state === 'HIDE') return;
     this.hp--;
     if (this.hp <= 0) {
       this.hp = 0;
@@ -898,7 +898,7 @@ class Projectile {
       }
     } else {
       // Enemy projectile hitting player
-      if (abs(this.x - player.x) < player.w / 2 + 20 && abs(this.y - player.y) < player.h / 2 + 40) {
+      if (player.state !== 'HIDE' && abs(this.x - player.x) < player.w / 2 + 20 && abs(this.y - player.y) < player.h / 2 + 40) {
         player.hit();
         this.dead = true;
         this.explode();
