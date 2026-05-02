@@ -640,9 +640,9 @@ class Enemy {
     this.firedThisCycle = false;
 
     // Dying animation config
-    this.dyingCols = 5;
+    this.dyingCols = 6;
     this.dyingRows = 5;
-    this.totalDyingFrames = 25;
+    this.totalDyingFrames = 30;
   }
 
   update() {
