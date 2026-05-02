@@ -8,7 +8,7 @@ let entities = [];
 let particles = [];
 let platforms = [];
 
-let imgBg1, imgBg2, imgPlayer, imgEnemy, imgWalk, imgSheathe, imgWalkUnarmed;
+let imgBg1, imgBg2, imgPlayer, imgEnemy, imgWalk, imgSheathe, imgWalkUnarmed, imgEnemyWalk;
 
 // Colors - Slayen Aesthetic
 const COLOR_SHADOW = '#050010';
@@ -25,6 +25,7 @@ function preload() {
   imgWalk = loadImage('assets/WalkingRight.png');
   imgSheathe = loadImage('assets/SheatheWeapon.png');
   imgWalkUnarmed = loadImage('assets/WalkingRightGunSheathed.png');
+  imgEnemyWalk = loadImage('assets/EnemyWalkingRight.png');
 }
 
 function setup() {
@@ -51,6 +52,7 @@ function setup() {
   removeWhiteBackground(imgWalk);
   removeWhiteBackground(imgSheathe);
   removeWhiteBackground(imgWalkUnarmed);
+  removeWhiteBackground(imgEnemyWalk);
 }
 
 function windowResized() {
@@ -482,24 +484,61 @@ class Enemy {
     this.gravity = 0.6;
     this.dead = false;
     this.hp = 3;
-    this.dir = -1;
+    this.dir = 1; // 1 = right, -1 = left
+    this.walkSpeed = 2;
+    this.frameIndex = 0;
+    this.changeDirTimer = 0;
+    
+    // Animation matrix config
+    this.cols = 6;
+    this.rows = 5;
+    this.totalFrames = this.cols * this.rows;
   }
   
   update() {
+    // Random Walk Logic
+    if (this.changeDirTimer <= 0) {
+      this.dir = random() > 0.5 ? 1 : -1;
+      this.changeDirTimer = random(60, 180); // Change direction every 1-3 seconds
+    }
+    this.changeDirTimer--;
+    
+    this.vx = this.dir * this.walkSpeed;
+    
     this.vy += this.gravity;
+    this.x += this.vx;
     this.y += this.vy;
     
-    // Collision
+    // Collision and Edge detection (don't walk off platforms if possible)
+    let onPlatform = false;
     for (let p of platforms) {
+      // Vertical Collision
       if (this.x + this.w/2 > p.x && this.x - this.w/2 < p.x + p.w) {
-        if (this.vy > 0 && this.y + this.h/2 >= p.y) {
+        if (this.vy > 0 && this.y + this.h/2 >= p.y && this.y - this.vy + this.h/2 <= p.y + 15) {
           this.y = p.y - this.h/2;
           this.vy = 0;
+          onPlatform = true;
+          
+          // Edge Detection: Reverse if about to walk off
+          let edgeMargin = 20;
+          if (this.dir === 1 && this.x + edgeMargin > p.x + p.w) {
+            this.dir = -1;
+            this.changeDirTimer = random(60, 120);
+          } else if (this.dir === -1 && this.x - edgeMargin < p.x) {
+            this.dir = 1;
+            this.changeDirTimer = random(60, 120);
+          }
         }
       }
     }
-    if (player.x < this.x) this.dir = -1;
-    else this.dir = 1;
+    
+    // Update Animation Frame
+    // Right: 0 -> 29, Left: 29 -> 0
+    let animSpeed = 0.4;
+    this.frameIndex += animSpeed;
+    if (this.frameIndex >= this.totalFrames) {
+      this.frameIndex = 0;
+    }
   }
   
   hit() {
@@ -511,21 +550,41 @@ class Enemy {
   draw() {
     push();
     translate(this.x, this.y);
-    scale(this.dir, 1);
+    
+    // "When the enemy is walking left, reverse the playback, and flip the frame."
+    // Flip the frame for both if native direction is not right, but user says 
+    // "use assets\EnemyWalkingRight.png sprite sheet for walk animation in the right direction"
+    // So right = normal, left = flip + reverse.
+    
+    if (this.dir === -1) {
+      scale(-1, 1); // Flip
+    }
     
     imageMode(CENTER);
     let drawW = 180;
     let drawH = 180;
     
-    // Idle breathing animation
-    let bob = abs(sin(frameCount * 0.05)) * 3;
-    translate(0, -bob);
-    
-    if (imgEnemy) {
-       image(imgEnemy, 0, 0, drawW, drawH);
+    if (imgEnemyWalk) {
+       let fIndex = floor(this.frameIndex);
+       fIndex = constrain(fIndex, 0, this.totalFrames - 1);
+       
+       let fw = 512; // Specified 512x512
+       let fh = 512;
+       let col = fIndex % this.cols;
+       let row = floor(fIndex / this.cols);
+       
+       image(imgEnemyWalk, 0, 0, drawW, drawH, col * fw, row * fh, fw, fh);
     } else {
-       fill(0, 0, 200);
-       rect(0, 0, this.w, this.h);
+       // Fallback
+       scale(this.dir, 1);
+       let bob = abs(sin(frameCount * 0.05)) * 3;
+       translate(0, -bob);
+       if (imgEnemy) {
+          image(imgEnemy, 0, 0, drawW, drawH);
+       } else {
+          fill(0, 0, 200);
+          rect(0, 0, this.w, this.h);
+       }
     }
     
     pop();
