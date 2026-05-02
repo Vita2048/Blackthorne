@@ -8,7 +8,7 @@ let entities = [];
 let particles = [];
 let platforms = [];
 
-let imgBg1, imgBg2, imgPlayer, imgEnemy, imgWalk, imgSheathe, imgWalkUnarmed, imgEnemyWalk;
+let imgBg1, imgBg2, imgPlayer, imgEnemy, imgWalk, imgSheathe, imgWalkUnarmed, imgEnemyWalk, imgEnemyShoot;
 
 // Colors - Slayen Aesthetic
 const COLOR_SHADOW = '#050010';
@@ -26,6 +26,7 @@ function preload() {
   imgSheathe = loadImage('assets/SheatheWeapon.png');
   imgWalkUnarmed = loadImage('assets/WalkingRightGunSheathed.png');
   imgEnemyWalk = loadImage('assets/EnemyWalkingRight.png');
+  imgEnemyShoot = loadImage('assets/EnemyShooting.png');
 }
 
 function setup() {
@@ -53,6 +54,7 @@ function setup() {
   removeWhiteBackground(imgSheathe);
   removeWhiteBackground(imgWalkUnarmed);
   removeWhiteBackground(imgEnemyWalk);
+  removeWhiteBackground(imgEnemyShoot);
 }
 
 function windowResized() {
@@ -64,8 +66,26 @@ function windowResized() {
 function removeWhiteBackground(img) {
   try {
     img.loadPixels();
+    
+    // First, check if the image already has transparency.
+    // If it does, we assume it's a proper PNG and don't want to mess with white pixels.
+    let hasTransparency = false;
+    for (let i = 3; i < img.pixels.length; i += 4) {
+      if (img.pixels[i] < 255) {
+        hasTransparency = true;
+        break;
+      }
+    }
+    
+    if (hasTransparency) {
+      console.log("Image already has transparency, skipping background removal.");
+      return;
+    }
+
+    // If no transparency was found, proceed with removing the white background
     for (let i = 0; i < img.pixels.length; i += 4) {
-      if (img.pixels[i] > 220 && img.pixels[i+1] > 220 && img.pixels[i+2] > 220) {
+      // Use a stricter threshold (250+) to avoid killing "bright but not white" pixels
+      if (img.pixels[i] > 250 && img.pixels[i+1] > 250 && img.pixels[i+2] > 250) {
         img.pixels[i+3] = 0; // Set alpha to 0 for white pixels
       }
     }
@@ -184,6 +204,16 @@ class Player {
     this.frameIndex = 0;
     this.sheatheAnimIndex = 24; // Start at the last frame (sheathed)
     this.animatingSheathe = false;
+    
+    this.maxHp = 5;
+    this.hp = this.maxHp;
+  }
+  
+  hit() {
+    this.hp--;
+    if (this.hp < 0) this.hp = 0;
+    // Add hit effect if needed
+    for(let i=0; i<5; i++) particles.push(new Spark(this.x, this.y, random(-5,5), random(-5,5), '#ff0000'));
   }
   
   update() {
@@ -468,8 +498,28 @@ class Player {
     }
     
     pop();
+    
+    // Draw Player Health Bar
+    this.drawHealthBar();
+    
     drawingContext.globalAlpha = 1.0;
     drawingContext.shadowBlur = 0;
+  }
+  
+  drawHealthBar() {
+    push();
+    translate(this.x, this.y - this.h/2 - 20);
+    noStroke();
+    // Background
+    fill(40, 0, 0, 200);
+    rectMode(CENTER);
+    rect(0, 0, 100, 8, 4);
+    // Fill
+    let pct = this.hp / this.maxHp;
+    fill(255, 50, 50);
+    rectMode(CORNER);
+    rect(-50, -4, 100 * pct, 8, 4);
+    pop();
   }
 }
 
@@ -484,26 +534,83 @@ class Enemy {
     this.gravity = 0.6;
     this.dead = false;
     this.hp = 3;
+    this.maxHp = 3;
     this.dir = 1; // 1 = right, -1 = left
     this.walkSpeed = 2;
     this.frameIndex = 0;
     this.changeDirTimer = 0;
+    this.state = 'IDLE'; // IDLE, WALK, SHOOT
+    
+    // AI / Combat
+    this.shootTimer = 0;
+    this.detectionRange = 700;
     
     // Animation matrix config
     this.cols = 6;
     this.rows = 5;
     this.totalFrames = this.cols * this.rows;
+    
+    this.shootCols = 4;
+    this.shootRows = 4;
+    this.totalShootFrames = 15;
   }
   
   update() {
-    // Random Walk Logic
-    if (this.changeDirTimer <= 0) {
-      this.dir = random() > 0.5 ? 1 : -1;
-      this.changeDirTimer = random(60, 180); // Change direction every 1-3 seconds
-    }
-    this.changeDirTimer--;
+    if (this.dead) return;
+
+    // Detection Logic
+    let distToPlayer = dist(this.x, this.y, player.x, player.y);
+    let playerInFront = (this.dir === 1 && player.x > this.x) || (this.dir === -1 && player.x < this.x);
+    let canSeePlayer = player.state !== 'HIDE' && distToPlayer < this.detectionRange && playerInFront;
     
-    this.vx = this.dir * this.walkSpeed;
+    if (canSeePlayer) {
+      if (this.state !== 'SHOOT') {
+        this.state = 'SHOOT';
+        this.frameIndex = 0;
+        this.shootTimer = 0;
+      }
+    } else if (this.state === 'SHOOT') {
+      // Return to idle if player lost
+      this.state = 'IDLE';
+    }
+
+    if (this.state === 'SHOOT') {
+      this.vx = 0;
+      this.shootTimer++;
+      
+      // Update shoot animation
+      this.frameIndex += 0.5;
+      if (this.frameIndex >= this.totalShootFrames) {
+        this.frameIndex = 0;
+      }
+      
+      // Fire bullet at specific frame (e.g., frame 10)
+      if (floor(this.frameIndex) === 10 && this.shootTimer % 30 === 0) {
+        this.shoot();
+      }
+      
+    } else {
+      // Random Walk / Idle Logic
+      if (this.changeDirTimer <= 0) {
+        let r = random();
+        if (r < 0.4) {
+          this.state = 'IDLE';
+          this.vx = 0;
+          this.changeDirTimer = random(60, 120);
+        } else {
+          this.state = 'WALK';
+          this.dir = random() > 0.5 ? 1 : -1;
+          this.changeDirTimer = random(120, 300);
+        }
+      }
+      this.changeDirTimer--;
+      
+      if (this.state === 'WALK') {
+        this.vx = this.dir * this.walkSpeed;
+      } else {
+        this.vx = 0;
+      }
+    }
     
     this.vy += this.gravity;
     this.x += this.vx;
@@ -519,66 +626,85 @@ class Enemy {
           this.vy = 0;
           onPlatform = true;
           
-          // Edge Detection: Reverse if about to walk off
-          let edgeMargin = 20;
-          if (this.dir === 1 && this.x + edgeMargin > p.x + p.w) {
-            this.dir = -1;
-            this.changeDirTimer = random(60, 120);
-          } else if (this.dir === -1 && this.x - edgeMargin < p.x) {
-            this.dir = 1;
-            this.changeDirTimer = random(60, 120);
+          if (this.state === 'WALK') {
+            // Edge Detection: Reverse if about to walk off
+            let edgeMargin = 30;
+            if (this.dir === 1 && this.x + edgeMargin > p.x + p.w) {
+              this.dir = -1;
+            } else if (this.dir === -1 && this.x - edgeMargin < p.x) {
+              this.dir = 1;
+            }
           }
         }
       }
     }
     
     // Update Animation Frame
-    // Right: 0 -> 29, Left: 29 -> 0
-    let animSpeed = 0.4;
-    this.frameIndex += animSpeed;
-    if (this.frameIndex >= this.totalFrames) {
-      this.frameIndex = 0;
+    let animSpeed = this.state === 'WALK' ? 0.4 : 0.1;
+    if (this.state !== 'SHOOT') {
+      this.frameIndex += animSpeed;
+      if (this.frameIndex >= this.totalFrames) {
+        this.frameIndex = 0;
+      }
     }
+  }
+  
+  shoot() {
+    let spawnX = this.x + (this.w/2 + 20) * this.dir;
+    let spawnY = this.y - 10;
+    let p = new Projectile(spawnX, spawnY, this.dir * 12, 0, false);
+    particles.push(p);
+    particles.push(new MuzzleFlash(spawnX, spawnY, this.dir));
+    playSound('enemy_shot');
   }
   
   hit() {
     if (player.state === 'HIDE') return; 
     this.hp--;
-    if (this.hp <= 0) this.dead = true;
+    if (this.hp <= 0) {
+      this.dead = true;
+      // Drop health or something?
+    }
   }
   
   draw() {
+    if (this.dead) return;
+
     push();
     translate(this.x, this.y);
-    
-    // "When the enemy is walking left, reverse the playback, and flip the frame."
-    // Flip the frame for both if native direction is not right, but user says 
-    // "use assets\EnemyWalkingRight.png sprite sheet for walk animation in the right direction"
-    // So right = normal, left = flip + reverse.
-    
-    if (this.dir === -1) {
-      scale(-1, 1); // Flip
-    }
     
     imageMode(CENTER);
     let drawW = 180;
     let drawH = 180;
     
-    if (imgEnemyWalk) {
-       let fIndex = floor(this.frameIndex);
-       fIndex = constrain(fIndex, 0, this.totalFrames - 1);
-       
-       let fw = 512; // Specified 512x512
-       let fh = 512;
-       let col = fIndex % this.cols;
-       let row = floor(fIndex / this.cols);
-       
-       image(imgEnemyWalk, 0, 0, drawW, drawH, col * fw, row * fh, fw, fh);
+    if (this.state === 'SHOOT' && imgEnemyShoot) {
+      // Native is LEFT. Flip if dir is 1 (RIGHT).
+      if (this.dir === 1) scale(-1, 1);
+      
+      let fIndex = floor(this.frameIndex) % this.totalShootFrames;
+      let fw = 512;
+      let fh = 512;
+      let col = fIndex % this.shootCols;
+      let row = floor(fIndex / this.shootCols);
+      
+      image(imgEnemyShoot, 0, 0, drawW, drawH, col * fw, row * fh, fw, fh);
+      
+    } else if (imgEnemyWalk && (this.state === 'WALK' || this.state === 'IDLE')) {
+      // Native is RIGHT. Flip if dir is -1 (LEFT).
+      if (this.dir === -1) scale(-1, 1);
+      
+      let fIndex = this.state === 'IDLE' ? 0 : floor(this.frameIndex);
+      fIndex = constrain(fIndex, 0, this.totalFrames - 1);
+      
+      let fw = 512;
+      let fh = 512;
+      let col = fIndex % this.cols;
+      let row = floor(fIndex / this.cols);
+      
+      image(imgEnemyWalk, 0, 0, drawW, drawH, col * fw, row * fh, fw, fh);
     } else {
        // Fallback
        scale(this.dir, 1);
-       let bob = abs(sin(frameCount * 0.05)) * 3;
-       translate(0, -bob);
        if (imgEnemy) {
           image(imgEnemy, 0, 0, drawW, drawH);
        } else {
@@ -587,6 +713,25 @@ class Enemy {
        }
     }
     
+    pop();
+    
+    // Draw Enemy Health Bar
+    this.drawHealthBar();
+  }
+
+  drawHealthBar() {
+    push();
+    translate(this.x, this.y - this.h/2 - 20);
+    noStroke();
+    // Background
+    fill(40, 0, 0, 200);
+    rectMode(CENTER);
+    rect(0, 0, 60, 6, 2);
+    // Fill
+    let pct = this.hp / this.maxHp;
+    fill(255, 50, 50);
+    rectMode(CORNER);
+    rect(-30, -3, 60 * pct, 6, 2);
     pop();
   }
 }
@@ -620,6 +765,14 @@ class Projectile {
           this.explode();
           return;
         }
+      }
+    } else {
+      // Enemy projectile hitting player
+      if (abs(this.x - player.x) < player.w/2 + 20 && abs(this.y - player.y) < player.h/2 + 40) {
+        player.hit();
+        this.dead = true;
+        this.explode();
+        return;
       }
     }
     
