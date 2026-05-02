@@ -8,7 +8,7 @@ let entities = [];
 let particles = [];
 let platforms = [];
 
-let imgBg1, imgBg2, imgPlayer, imgEnemy, imgWalk, imgSheathe, imgWalkUnarmed, imgEnemyWalk, imgEnemyShoot, imgPlayerDeath, imgRun, imgEnemyDying;
+let imgBg1, imgBg2, imgPlayer, imgEnemy, imgWalk, imgSheathe, imgWalkUnarmed, imgEnemyWalk, imgEnemyShoot, imgPlayerDeath;
 
 // Colors - Slayen Aesthetic
 const COLOR_SHADOW = '#050010';
@@ -28,8 +28,6 @@ function preload() {
   imgEnemyWalk = loadImage('assets/EnemyWalkingRight.png');
   imgEnemyShoot = loadImage('assets/EnemyShooting.png');
   imgPlayerDeath = loadImage('assets/PlayerDies.png');
-  imgRun = loadImage('assets/PlayerRunning.png');
-  imgEnemyDying = loadImage('assets/EnemyDying.png');
 }
 
 function setup() {
@@ -59,8 +57,6 @@ function setup() {
   removeWhiteBackground(imgEnemyWalk);
   removeWhiteBackground(imgEnemyShoot);
   removeWhiteBackground(imgPlayerDeath);
-  removeWhiteBackground(imgRun);
-  removeWhiteBackground(imgEnemyDying);
 }
 
 function windowResized() {
@@ -379,8 +375,7 @@ class Player {
 
     // Animation Frame Logic
     if (this.state === 'RUN' || this.state === 'WALK') {
-      let animSpeed = this.state === 'RUN' ? 0.6 : 0.4;
-      let maxFrames = this.state === 'RUN' ? 22 : 24;
+      let animSpeed = this.state === 'RUN' ? 1.6 : 0.4;
       this.frameIndex += animSpeed;
       if (this.frameIndex >= maxFrames) this.frameIndex = 0;
     } else {
@@ -509,38 +504,7 @@ class Player {
       imageMode(CORNER);
       // Draw so the bottom-center of the frame is at the feet position (0,0)
       image(imgPlayerDeath, -deathW / 2, -deathH, deathW, deathH, col * fw, row * fh, fw, fh);
-    } else if (this.state === 'RUN' && imgRun) {
-      let fIndex = floor(this.frameIndex);
-      let totalFrames = 22;
-      if (fIndex >= totalFrames) fIndex = totalFrames - 1;
-
-      // Reset local transform to handle native LEFT sheet correctly
-      pop();
-      push();
-      translate(this.x, this.y);
-
-      // Native is LEFT. 
-      // Running Left (dir=-1) -> scale(1,1)
-      // Running Right (dir=1) -> scale(-1,1) + reverse frames
-      if (this.dir === 1) {
-        scale(-1, 1);
-        fIndex = (totalFrames - 1) - fIndex;
-      } else {
-        scale(1, 1);
-      }
-
-      let cols = 5;
-      let rows = 5;
-      let fw = imgRun.width / cols;
-      let fh = imgRun.height / rows;
-      let col = fIndex % cols;
-      let row = floor(fIndex / cols);
-
-      imageMode(CENTER);
-      image(imgRun, 0, 0, drawW, drawH, col * fw, row * fh, fw, fh);
-      // The final pop at the end of draw() will close this push()
-
-    } else if (this.state === 'WALK') {
+    } else if ((this.state === 'RUN' || this.state === 'WALK')) {
       let targetImg = this.isArmed ? imgWalk : imgWalkUnarmed;
 
       if (targetImg) {
