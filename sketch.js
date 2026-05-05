@@ -8,7 +8,7 @@ let entities = [];
 let particles = [];
 let platforms = [];
 
-let imgBg1, imgBg2, imgPlayer, imgEnemy, imgWalk, imgSheathe, imgWalkUnarmed, imgEnemyWalk, imgEnemyShoot, imgPlayerDeath, imgRun, imgEnemyDying;
+let imgBg1, imgBg2, imgPlayer, imgEnemy, imgWalk, imgSheathe, imgWalkUnarmed, imgEnemyWalk, imgEnemyShoot, imgPlayerDeath, imgRun, imgEnemyDying, imgCover, imgCoverNoGun;
 
 // Colors - Slayen Aesthetic
 const COLOR_SHADOW = '#050010';
@@ -30,6 +30,8 @@ function preload() {
   imgPlayerDeath = loadImage('assets/PlayerDies.png');
   imgRun = loadImage('assets/PlayerRunning.png');
   imgEnemyDying = loadImage('assets/EnemyDying.png');
+  imgCover = loadImage('assets/CoverPosition.png');
+  imgCoverNoGun = loadImage('assets/CoverPositionNoGun.png');
 }
 
 function setup() {
@@ -61,6 +63,8 @@ function setup() {
   removeWhiteBackground(imgPlayerDeath);
   removeWhiteBackground(imgRun);
   removeWhiteBackground(imgEnemyDying);
+  removeWhiteBackground(imgCover);
+  removeWhiteBackground(imgCoverNoGun);
 }
 
 function windowResized() {
@@ -247,7 +251,7 @@ class Player {
     // Edge Trigger: Draw/Sheathe Weapon
     let keyS = keys['s'] || keys['S'];
     if (keyS && !this.prevKeyS) {
-      if (this.state === 'IDLE' || this.state === 'WALK' || this.state === 'CROUCH' || this.state === 'RUN') {
+      if (this.state === 'IDLE' || this.state === 'WALK' || this.state === 'CROUCH' || this.state === 'RUN' || this.state === 'HIDE') {
         this.animatingSheathe = true;
         // If armed, start sheathing (0 -> 24). If unarmed, start drawing (24 -> 0).
         if (this.isArmed) {
@@ -460,11 +464,7 @@ class Player {
     let visualDir = logicalDir * this.nativeFacing;
     scale(visualDir, 1);
 
-    if (this.state === 'HIDE') {
-      drawingContext.globalAlpha = 0.3; // Melting into shadow
-      drawingContext.shadowBlur = 20;
-      drawingContext.shadowColor = 'black';
-    }
+
 
     if (this.state === 'CROUCH') {
       translate(0, this.h / 4);
@@ -509,6 +509,14 @@ class Player {
       imageMode(CORNER);
       // Draw so the bottom-center of the frame is at the feet position (0,0)
       image(imgPlayerDeath, -deathW / 2, -deathH, deathW, deathH, col * fw, row * fh, fw, fh);
+    } else if (this.state === 'HIDE') {
+      let targetImg = this.isArmed ? imgCover : imgCoverNoGun;
+      if (targetImg) {
+        push();
+        scale(-1, 1); // Flip because native is left-oriented
+        image(targetImg, 0, 0, drawW, drawH);
+        pop();
+      }
     } else if (this.state === 'RUN' && imgRun) {
       let fIndex = floor(this.frameIndex);
       let totalFrames = 22;
